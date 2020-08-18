@@ -50,6 +50,8 @@ class DroidBotScript(object):
         self.states = {}
         self.operations = {}
         self.main = {}
+        self.target_view = None
+        self.target_state = None
         self.parse()
 
     def parse(self):
@@ -69,6 +71,8 @@ class DroidBotScript(object):
             view_selector_dict = script_value[view_id]
             view_selector = ViewSelector(view_id, view_selector_dict, self)
             self.views[view_id] = view_selector
+            if view_id == "target_view":
+                self.target_view = view_selector
 
     def parse_states(self):
         script_key = 'states'
@@ -78,6 +82,8 @@ class DroidBotScript(object):
             state_selector_dict = script_value[state_id]
             state_seletor = StateSelector(state_id, state_selector_dict, self)
             self.states[state_id] = state_seletor
+            if state_id == "target_state":
+                self.target_state = state_seletor
 
     def parse_operations(self):
         script_key = 'operations'
@@ -103,6 +109,19 @@ class DroidBotScript(object):
                 self.check_grammar_key_is_valid(operation_id, self.operations, key_tag)
                 operation = self.operations[operation_id]
                 self.main[state_selector].append(operation)
+
+    def is_matching_state(self, state):
+        """
+        determine if the state matches any defined in the script
+        :param state: DeviceState
+        :return: boolean
+        """
+        if not state:
+            return False
+        for state_selector in self.main:
+            if state_selector.match(state) and state_selector.id == "target_state":
+                return True
+        return False
 
     def get_operation_based_on_state(self, state):
         """

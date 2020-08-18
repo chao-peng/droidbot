@@ -12,7 +12,7 @@ from .input_policy import UtgBasedInputPolicy, UtgNaiveSearchPolicy, UtgGreedySe
                          POLICY_REPLAY, \
                          POLICY_MANUAL, POLICY_MONKEY, POLICY_NONE
 
-DEFAULT_POLICY = POLICY_GREEDY_DFS
+DEFAULT_POLICY = POLICY_GREEDY_BFS
 DEFAULT_EVENT_INTERVAL = 1
 DEFAULT_EVENT_COUNT = 1000
 DEFAULT_TIMEOUT = -1
@@ -28,7 +28,7 @@ class InputManager(object):
     """
 
     def __init__(self, device, app, policy_name, random_input,
-                 event_count, event_interval,
+                 event_count, event_interval, length_n,
                  script_path=None, profiling_method=None, master=None,
                  replay_output=None):
         """
@@ -51,6 +51,7 @@ class InputManager(object):
         self.event_count = event_count
         self.event_interval = event_interval
         self.replay_output = replay_output
+        self.length_n = length_n
 
         self.monkey = None
 
@@ -71,7 +72,7 @@ class InputManager(object):
         elif self.policy_name in [POLICY_NAIVE_DFS, POLICY_NAIVE_BFS]:
             input_policy = UtgNaiveSearchPolicy(device, app, self.random_input, self.policy_name)
         elif self.policy_name in [POLICY_GREEDY_DFS, POLICY_GREEDY_BFS]:
-            input_policy = UtgGreedySearchPolicy(device, app, self.random_input, self.policy_name)
+            input_policy = UtgGreedySearchPolicy(device, app, self.random_input, self.policy_name, self.length_n)
         elif self.policy_name == POLICY_REPLAY:
             input_policy = UtgReplayPolicy(device, app, self.replay_output)
         elif self.policy_name == POLICY_MANUAL:

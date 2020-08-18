@@ -4,8 +4,9 @@ import logging
 import random
 from abc import abstractmethod
 
-from .input_event import InputEvent, KeyEvent, IntentEvent, TouchEvent, ManualEvent, SetTextEvent
+from .input_event import InputEvent, KeyEvent, IntentEvent, TouchEvent, ManualEvent, SetTextEvent, UIEvent
 from .utg import UTG
+import itertools
 
 # Max number of restarts
 MAX_NUM_RESTARTS = 5
@@ -66,6 +67,8 @@ class InputPolicy(object):
                     event = IntentEvent(self.app.get_start_intent())
                 else:
                     event = self.generate_event()
+                    if event is None:
+                        break
                 input_manager.add_event(event)
             except KeyboardInterrupt:
                 break
@@ -112,7 +115,7 @@ class UtgBasedInputPolicy(InputPolicy):
     state-based input policy
     """
 
-    def __init__(self, device, app, random_input):
+    def __init__(self, device, app, random_input, length_n):
         super(UtgBasedInputPolicy, self).__init__(device, app)
         self.random_input = random_input
         self.script = None
@@ -123,6 +126,12 @@ class UtgBasedInputPolicy(InputPolicy):
         self.current_state = None
         self.utg = UTG(device=device, app=app, random_input=random_input)
         self.script_event_idx = 0
+
+        self.length_n = length_n
+        self.length_n_events = None
+        self.current_length_n_events = []
+        self.length_n_idx = 0
+
         if self.device.humanoid is not None:
             self.humanoid_view_trees = []
             self.humanoid_events = []
@@ -154,14 +163,34 @@ class UtgBasedInputPolicy(InputPolicy):
         if len(self.script_events) > self.script_event_idx:
             event = self.script_events[self.script_event_idx].get_transformed_event(self)
             self.script_event_idx += 1
-
+        
         # First try matching a state defined in the script
         if event is None and self.script is not None:
-            operation = self.script.get_operation_based_on_state(self.current_state)
-            if operation is not None:
-                self.script_events = operation.events
-                # restart script
-                event = self.script_events[0].get_transformed_event(self)
+            if not self.script.is_matching_state(self.current_state):
+                operation = self.script.get_operation_based_on_state(self.current_state)
+                if operation is not None:
+                    self.script_events = operation.events
+                    # restart script
+                    event = self.script_events[0].get_transformed_event(self)
+                    self.script_event_idx = 1
+
+        if len(self.current_length_n_events) > self.length_n_idx:
+            self.logger.info("Previous sequence of targeted view not finished. Resumed.")
+            event = self.current_length_n_events[self.length_n_idx]
+            self.length_n_idx += 1
+
+        if event is None and self.script is not None:
+            if self.script.is_matching_state(self.current_state):
+                self.logger.info("This state is the targeted state. Fetching a length n sequence for the targeted view.")
+                if self.length_n_events is None:
+                    self.length_n_events = self.generate_length_n_event_sequence()
+                if len(self.length_n_events) == 0:
+                    self.logger.info("All sequences used. ")
+                    return None
+                self.current_length_n_events = self.length_n_events[0]
+                self.length_n_events = self.length_n_events[1:]
+                event = self.current_length_n_events[0]
+                self.logger.info("Using length N events")
                 self.script_event_idx = 1
 
         if event is None:
@@ -176,6 +205,47 @@ class UtgBasedInputPolicy(InputPolicy):
         self.last_state = self.current_state
         self.last_event = event
         return event
+
+    def generate_length_n_event_sequence(self):
+        all_possible_events = self.current_state.get_possible_input()
+        events_of_other_views = []
+        events_of_targeted_view = []
+        for event in all_possible_events:
+            target_view_found = False
+            if isinstance(event, UIEvent):
+                views = event.get_views()
+                for view in views:
+                    if self.script.target_view.match(view):
+                        events_of_targeted_view.append(event)
+                        target_view_found = True
+                        break
+            if not target_view_found:
+                events_of_other_views.append(event)
+
+        self.logger.info("Events of targeted view are gathered")
+        for event_of_targeted_view in events_of_targeted_view:
+            print(event_of_targeted_view)
+
+        if len(events_of_targeted_view) == 0:
+            print("Fatal error: events not found for the targeted view in the defined state.")
+            return []
+
+        if len(all_possible_events) < 2:
+            print("Fatal error: not enough events in this state")
+            return []
+
+        event_sequences = []
+
+        permutations_of_remaining_events_iterator = itertools.permutations(events_of_other_views, self.length_n - 1)
+        for permutation in permutations_of_remaining_events_iterator:
+            lst_permutation = list(permutation)
+            for event_of_targeted_view in events_of_targeted_view:
+                for i in range(self.length_n):
+                    event_sequences.append(lst_permutation[:i] + [event_of_targeted_view] + lst_permutation[i + 1:])
+        from datetime import datetime
+        current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        self.logger.info("[%s] %d length %d events generated for the targeted view" % (current_time, len(event_sequences), self.length_n))
+        return event_sequences
 
     def __update_utg(self):
         self.utg.add_transition(self.last_event, self.last_state, self.current_state)
@@ -348,8 +418,8 @@ class UtgGreedySearchPolicy(UtgBasedInputPolicy):
     DFS/BFS (according to search_method) strategy to explore UFG (new)
     """
 
-    def __init__(self, device, app, random_input, search_method):
-        super(UtgGreedySearchPolicy, self).__init__(device, app, random_input)
+    def __init__(self, device, app, random_input, search_method, length_n):
+        super(UtgGreedySearchPolicy, self).__init__(device, app, random_input, length_n)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.search_method = search_method
 

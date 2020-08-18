@@ -23,6 +23,7 @@ class DroidBot(object):
     instance = None
 
     def __init__(self,
+                 length_n,
                  app_path=None,
                  device_serial=None,
                  is_emulator=False,
@@ -109,7 +110,9 @@ class DroidBot(object):
                 script_path=script_path,
                 profiling_method=profiling_method,
                 master=master,
-                replay_output=replay_output)
+                replay_output=replay_output,
+                length_n=length_n)
+
         except Exception:
             import traceback
             traceback.print_exc()
@@ -130,7 +133,9 @@ class DroidBot(object):
         """
         if not self.enabled:
             return
-        self.logger.info("Starting DroidBot")
+        from datetime import datetime
+        current_time = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        self.logger.info("Starting DroidBot at %s" % current_time)
         try:
             if self.timeout > 0:
                 self.timer = Timer(self.timeout, self.stop)

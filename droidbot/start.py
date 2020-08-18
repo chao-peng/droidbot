@@ -56,7 +56,7 @@ def parse_args():
     parser.add_argument("-qemu_no_graphic", action="store_true", dest="qemu_no_graphic",
                         help="Run QEMU with -nograpihc parameter")
 
-    parser.add_argument("-script", action="store", dest="script_path",
+    parser.add_argument("-script", action="store", dest="script_path", required=True,
                         help="Use a script to customize input for certain states.")
     parser.add_argument("-count", action="store", dest="count", default=input_manager.DEFAULT_EVENT_COUNT, type=int,
                         help="Number of events to generate in total. Default: %d" % input_manager.DEFAULT_EVENT_COUNT)
@@ -89,6 +89,7 @@ def parse_args():
                         help="Ignore Ad views by checking resource_id.")
     parser.add_argument("-replay_output", action="store", dest="replay_output",
                         help="The droidbot output directory being replayed.")
+    parser.add_argument("-length_n", action="store", dest="length_n", help="Length N", default=3)
     options = parser.parse_args()
     # print options
     return options
@@ -144,6 +145,7 @@ def main():
     else:
         droidbot = DroidBot(
             app_path=opts.apk_path,
+            length_n=opts.length_n,
             device_serial=opts.device_serial,
             is_emulator=opts.is_emulator,
             output_dir=opts.output_dir,

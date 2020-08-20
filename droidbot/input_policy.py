@@ -216,6 +216,7 @@ class UtgBasedInputPolicy(InputPolicy):
                 views = event.get_views()
                 for view in views:
                     if self.script.target_view.match(view):
+                        event.is_target_event = True
                         events_of_targeted_view.append(event)
                         target_view_found = True
                         break

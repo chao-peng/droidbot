@@ -496,6 +496,7 @@ class Device(object):
         else:
             self.logger.warning("unsupported param " + app + " with type: ", type(app))
             return
+        self.logger.info("Package Name: " % package_name)
         intent = Intent(suffix=package_name)
         self.send_intent(intent)
 

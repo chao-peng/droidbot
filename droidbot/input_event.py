@@ -80,6 +80,8 @@ KEY_SetTextEvent = "set_text"
 KEY_IntentEvent = "intent"
 KEY_SpawnEvent = "spawn"
 
+event_id = 1
+
 
 class InvalidEventException(Exception):
     pass
@@ -200,7 +202,14 @@ class EventLog(object):
         try:
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
-            event_json_file_path = "%s/event_%s.json" % (output_dir, self.tag)
+            global event_id
+            event_json_file_path = "%s/event_%s_%s" % (output_dir, self.tag, str(event_id).zfill(6))
+            event_id += 1
+            if hasattr(self.event, "is_target_event"):
+                if self.event.is_target_event:
+                    event_json_file_path = event_json_file_path + "_KEY_EVENT"
+            event_json_file_path = event_json_file_path + ".json"
+
             event_json_file = open(event_json_file_path, "w")
             json.dump(self.to_dict(), event_json_file, indent=2)
             event_json_file.close()
@@ -411,6 +420,7 @@ class TouchEvent(UIEvent):
         self.x = x
         self.y = y
         self.view = view
+        self.is_target_event = False
         if event_dict is not None:
             self.__dict__.update(event_dict)
 
@@ -449,6 +459,7 @@ class LongTouchEvent(UIEvent):
         self.y = y
         self.view = view
         self.duration = duration
+        self.is_target_event = False
         if event_dict is not None:
             self.__dict__.update(event_dict)
 
@@ -498,6 +509,8 @@ class SwipeEvent(UIEvent):
         self.end_view = end_view
 
         self.duration = duration
+
+        self.is_target_event = False
 
         if event_dict is not None:
             self.__dict__.update(event_dict)
@@ -556,6 +569,7 @@ class ScrollEvent(UIEvent):
         self.y = y
         self.view = view
         self.direction = direction
+        self.is_target_event = False
 
         if event_dict is not None:
             self.__dict__.update(event_dict)
@@ -632,6 +646,7 @@ class SetTextEvent(UIEvent):
         self.y = y
         self.view = view
         self.text = text
+        self.is_target_event = False
         if event_dict is not None:
             self.__dict__.update(event_dict)
 
